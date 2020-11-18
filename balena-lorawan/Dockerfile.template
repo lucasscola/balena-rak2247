@@ -1,0 +1,38 @@
+# base-image for node on, Debian (default) distro used
+FROM balenalib/%%BALENA_MACHINE_NAME%%-node:10-stretch-run AS build
+
+# use `install_packages` if you need to install dependencies,
+# for instance if you need git, just uncomment the line below.
+RUN install_packages gcc \
+    make \
+    libftdi-dev \
+    libusb-dev
+
+# Build working dir
+WORKDIR /build
+
+# Copies the files for building the packet forwarder
+COPY rak_source rak_source
+
+WORKDIR /build/rak_source/lora/rak2247_usb
+# Install packet forwarder
+RUN ./install.sh
+
+# Execute the packet forwarder
+
+FROM balenalib/%%BALENA_MACHINE_NAME%%-node:10-stretch-run
+
+RUN install_packages libftdi-dev libusb-dev python
+
+WORKDIR /opt/ttn-gateway
+
+COPY --from=build /opt/ttn-gateway/ .
+COPY --from=build /usr/local/lib/libmpsse* /usr/lib/
+
+COPY rak_source/local_conf.json ./packet_forwarder/lora_pkt_fwd/local_conf.json
+#COPY run.py ./
+COPY run.sh .
+RUN chmod +x run.sh
+CMD ./run.sh
+
+#CMD python /opt/ttn-gateway/run.py
